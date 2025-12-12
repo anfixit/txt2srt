@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>txt2srt - Конвертер транскрибаций в субтитры</title>
+        <link
+            rel="stylesheet"
+            href="{{ url_for('static', filename='style.css') }}"
+        />
+    </head>
+    <body>
+        <div class="container">
+            <h1>📝 txt2srt</h1>
+            <p class="subtitle">Превращаем текст в субтитры</p>
+
+            <form method="POST" action="/convert" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label>Транскрибация:</label>
+                    <div class="input-tabs">
+                        <button
+                            type="button"
+                            class="tab-btn active"
+                            onclick="switchTab('text')"
+                        >
+                            Вставить текст
+                        </button>
+                        <button
+                            type="button"
+                            class="tab-btn"
+                            onclick="switchTab('file')"
+                        >
+                            Загрузить файл
+                        </button>
+                    </div>
+
+                    <div id="text-tab" class="tab-content active">
+                        <textarea
+                            id="transcript"
+                            name="transcript"
+                            rows="10"
+                            placeholder="Вставьте сюда текст транскрибации..."
+                        ></textarea>
+                    </div>
+
+                    <div id="file-tab" class="tab-content">
+                        <input
+                            type="file"
+                            id="file"
+                            name="file"
+                            accept=".txt,.srt"
+                        />
+                        <p class="file-hint">
+                            Поддерживаются файлы .txt и .srt
+                        </p>
+                    </div>
+                </div>
+
+                <div class="settings">
+                    <div class="form-group">
+                        <label>Длительность видео:</label>
+                        <div class="time-inputs">
+                            <div class="time-field">
+                                <input
+                                    type="number"
+                                    name="hours"
+                                    value="0"
+                                    min="0"
+                                    max="99"
+                                />
+                                <span class="time-label">ч</span>
+                            </div>
+                            <span class="time-separator">:</span>
+                            <div class="time-field">
+                                <input
+                                    type="number"
+                                    name="minutes"
+                                    value="1"
+                                    min="0"
+                                    max="59"
+                                />
+                                <span class="time-label">м</span>
+                            </div>
+                            <span class="time-separator">:</span>
+                            <div class="time-field">
+                                <input
+                                    type="number"
+                                    name="seconds"
+                                    value="0"
+                                    min="0"
+                                    max="59"
+                                />
+                                <span class="time-label">с</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="chars_per_segment"
+                            >Символов в субтитре:</label
+                        >
+                        <input
+                            type="number"
+                            id="chars_per_segment"
+                            name="chars_per_segment"
+                            value="50"
+                            min="10"
+                            max="100"
+                        />
+                        <small class="hint">Рекомендуется 40-60 символов</small>
+                    </div>
+                </div>
+
+                <button type="submit">Конвертировать</button>
+            </form>
+
+            <div class="info-box">
+                <h3>ℹ️ Что такое "символов в субтитре"?</h3>
+                <p>
+                    Это максимальная длина одной строки субтитров. Чем меньше
+                    значение — тем короче будут фразы, чем больше — тем длиннее.
+                </p>
+                <p>
+                    <strong>40-50</strong> — удобно для мобильных<br />
+                    <strong>50-60</strong> — стандарт для десктопа<br />
+                    <strong>60-80</strong> — для широких экранов
+                </p>
+            </div>
+        </div>
+
+        <script>
+            function switchTab(tab) {
+                // Убираем активный класс у всех табов
+                document
+                    .querySelectorAll(".tab-btn")
+                    .forEach((btn) => btn.classList.remove("active"));
+                document
+                    .querySelectorAll(".tab-content")
+                    .forEach((content) => content.classList.remove("active"));
+
+                // Добавляем активный класс нужному табу
+                if (tab === "text") {
+                    document
+                        .querySelector(".tab-btn:first-child")
+                        .classList.add("active");
+                    document.getElementById("text-tab").classList.add("active");
+                } else {
+                    document
+                        .querySelector(".tab-btn:last-child")
+                        .classList.add("active");
+                    document.getElementById("file-tab").classList.add("active");
+                }
+            }
+        </script>
+    </body>
+</html>
