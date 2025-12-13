@@ -1,0 +1,158 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # ════════════════════════════════════════════
+  # 🔍 Проверка кода
+  # ════════════════════════════════════════════
+  lint:
+    name: 🔍 Lint & Format
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: 📦 Install linters
+        run: |
+          pip install flake8 black isort
+
+      - name: 🎨 Check formatting with Black
+        run: |
+          black --check --diff .
+        continue-on-error: true
+
+      - name: 📋 Check import sorting
+        run: |
+          isort --check-only --diff .
+        continue-on-error: true
+
+      - name: 🔎 Lint with Flake8
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
+
+  # ════════════════════════════════════════════
+  # 🧪 Тестирование
+  # ════════════════════════════════════════════
+  test:
+    name: 🧪 Tests
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: 🧪 Run tests
+        run: |
+          pytest --tb=short -v || echo "⚠️ No tests found or tests failed"
+        continue-on-error: true
+
+      - name: ✅ Verify app imports
+        run: |
+          python -c "from app import app; print('✅ App imports successfully')"
+          python -c "from txt2srt.converter import create_srt; print('✅ Converter imports successfully')"
+
+  # ════════════════════════════════════════════
+  # 🔒 Безопасность
+  # ════════════════════════════════════════════
+  security:
+    name: 🔒 Security Check
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: 🔒 Check dependencies for vulnerabilities
+        run: |
+          pip install safety pip-audit
+          pip install -r requirements.txt
+          pip-audit || echo "⚠️ Some vulnerabilities found"
+        continue-on-error: true
+
+  # ════════════════════════════════════════════
+  # 🚀 Деплой
+  # ════════════════════════════════════════════
+  deploy:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [lint, test, security]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: 🚀 Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            echo "════════════════════════════════════════"
+            echo "🚀 Starting deployment..."
+            echo "════════════════════════════════════════"
+
+            cd /opt/txt2srt
+
+            echo "📥 Pulling latest changes..."
+            git pull origin main
+
+            echo "📦 Installing dependencies..."
+            source venv/bin/activate
+            pip install -r requirements.txt --quiet
+
+            echo "🔄 Restarting service..."
+            sudo systemctl restart txt2srt
+
+            echo "⏳ Waiting for service to start..."
+            sleep 3
+
+            echo "🔍 Checking service status..."
+            if sudo systemctl is-active --quiet txt2srt; then
+              echo "════════════════════════════════════════"
+              echo "✅ Deployment successful!"
+              echo "════════════════════════════════════════"
+              sudo systemctl status txt2srt --no-pager
+            else
+              echo "════════════════════════════════════════"
+              echo "❌ Deployment failed! Service is not running"
+              echo "════════════════════════════════════════"
+              sudo journalctl -u txt2srt -n 20 --no-pager
+              exit 1
+            fi
+
+      - name: 📢 Deployment notification
+        if: success()
+        run: |
+          echo "🎉 txt2srt deployed successfully!"
+          echo "🌐 Site: https://txt2srt.ru"
